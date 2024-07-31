@@ -2,7 +2,7 @@
 
 **Professional Certificate in Machine Learning and Artificial Intelligence**<br>
 **Jeremy Stairs**<br>
-**June 2024**
+**July 2024**
 <br>
 <br>
 
@@ -25,9 +25,9 @@ Note: My original question asked if the speed limit could be predicted from OSM 
 
 ### Data Sources
 This project has two data sources:
+- Fleet telematics data
+- Open Street Maps (OSM) tag data
 
-Fleet telematics data
-Open Street Maps (OSM) tag data
 Speed limits and associated mapping data are publicly available from the Open Street Map (OSM) project. There are mapping files with varying levels of granularity (continent, country, state). The files can be uncompressed and imported to a PostgreSQL server. The compressed mapping files for the entire world are about 100 GB which require about 1TB of database space. We have a server with full mapping data for the continental US.
 
 OSM Wiki: https://wiki.openstreetmap.orgLinks to an external site.
@@ -56,57 +56,73 @@ Overall, the project follows the Data Science Life Cycle (DSLC).
 
 **Data Cleaning**<br>
 Feature examination exposed several changes needed during data cleaning:
-- 'lanes' will be cast from an object to a numerical feature
-- 'oneway' will have the values '-1' changed to 'reversible'
-- 'horse' will have the value 'no '' converted to 'no'
-- the features 'oneway', 'surface', and 'hgv' will be converted to numerical features using one-hot encoding
-- the features 'foot', 'horse', and 'bicycle' will be converted to numerical features using binary encoding
+- 'lanes' were cast from an object to a numerical feature
+- 'oneway' had the values '-1' changed to 'reversible'
+- 'horse' had the value 'no '' converted to 'no'
+- the features 'oneway', 'surface', and 'hgv' were converted to numerical features using one-hot encoding
+- the features 'foot', 'horse', and 'bicycle' were converted to numerical features using binary encoding
 
 **Modeling**<br>
-In the modeling phase, four classifiers are used:
+In the modeling phase, four classifiers were used:
 
 - Logistic Regression
 - K-Nearest Neighbors
 - Decision Tree
 - Support Vecor Machine
 
-A baseline will be set using DummyClassifier and LogisticRegression with default settings. Further modeling will use the classifiers above with default parameters. Light hyperparameter tuning will be done using grid search. Future work will include more thorough hyper parameter tuning with different scoring metrics.
+Ensamble techniques random forest and AdaBoost were also used.
+
+A baseline was be set using LogisticRegression with default settings. Further modeling of the classifiers above was performed with default parameters. Thorough hyperparameter tuning was performed using grid search.
 <br>
 <br>
 
 ### Results
-Initial testing shows the shows positive results. A variety of classifiers along with hyperparameter tuning shows improvement in accuracy scores.
 
-The baseline score with the dummy classifier was 0.6415. 
+The target of our data set is imbalance nearly 2 to 1. This imbalance makes accuracy a bad evaluation metric. We considered the metrics precision and recall. Precision minimizes false positives. This favors models that catch only some speeders, but is unlikely to classify a non-speeder incorrectly. Models with high recall scores will be more likely to catch all speeders, but some non-speeders will be incorrectly classified as speeding. We measured both metrics for the baseline and default models.
 
+The baseline score with a default logistic regression model had scores:
+ Train Precision | Test Precision | Train Recall | Test Recall
+---:|:---:|:---:|:---
+0.7047 | 0.6849 | 0.7267 | 0.7498
 #### Default model performance:
 
-Model | Training Time (ms) | Training Accuracy | Test Accuracy
----:|:---:|:---:|:---
-**Logistic Regression** | 698 | 0.7817 | 0.7858
-**K-Nearest Neighbors** | 11.0 | 0.8376 | 0.7525
-**Decision Tree** | 37.0 | 0.8658 | 0.7043
-**Support Vector Machine** | 3951 | 0.7812 | 0.7899
+Model | Training Time (ms) | Train Precision | Test Precision | Train Recall | Test Recall
+---:|:---:|:---:|:---:|:---:|:---
+**Logistic Regression** | 16.0 | 0.7047 | 0.6849 | 0.7267 | 0.7498
+**K-Nearest Neighbors** | 8.0 | 0.7961 | 0.6555 | 0.7683 | 0.6646
+**Decision Tree** | 19.0 | 0.9133 | 0.5964 | 0.7130 | 0.5414
+**Support Vector Machine** | 1464.0 | 0.7250 | 0.6977 | 0.7074 | 0.7334
 
-Logistic regression and SVC had very close scores, but the train time for logistic regression was much faster.
+Logistic regression had a higher recall score. SVC had a higher precision score, but the train time for SVC was much longer.
 
 #### Tuned model performance:
 
-Model | Training Time (ms) | Training Accuracy | Test Accuracy
----:|:---:|:---:|:---
-**Logistic Regression** | 40 | 0.7817 | 0.7862
-**K-Nearest Neighbors** | 11 | 0.8251 | 0.7769
-**Decision Tree** | 23 | 0.7980 | 0.8034
-**Support Vector Machine** | 5006 | 0.7827 | 0.7903
+Considering the test scores for the default models, it's unlikely that the models can be used as the only source to determine if the vehicle was speeding. However, we could use model to find potential speeding vehicles. Recall was used to evaluate the tuned models. This made the models more likely to find all speeding vehciles. Readings that are classified as speeding can be sent to a more accurate, but more expensive, speed limit service.
 
-With light hyperparameter tuning using grid search, the decision tree has the best score.
+Model | Training Time (ms) | Training Recall | Test Recall
+---:|:---:|:---:|:---
+**Logistic Regression** | 14 | 0.8473 | 0.8680
+**K-Nearest Neighbors** | 16 | 0.7301 | 0.7069
+**Decision Tree** | 18 | 0.7232 | 0.6930
+**Support Vector Machine** | 1318 | 0.7333 | 0.7599
+
+With hyperparameter tuning, the logistic regression model had the best score.
+
+To explore ensamble techniques, a random forest classifier and AdaBoost classifier are selected using grid search. The AdaBoost classifier use a logistic regression estimator.
+
+Model | Training Time (ms) | Training Recall | Test Recall
+---:|:---:|:---:|:---
+**Random Forest** | 397 | 0.8924 | 0.9015
+**AdaBoost** | 499 | 0.9116 | 0.9191
+
+Both ensamble techniques performed better than any of the tuned models. The AdaBoost classifier using a logistic regression estimator performed slightly better than the random forest.
 <br>
 <br>
 
 ### Next steps
-The test scores show that ML modeling is a viable way to predict events where the driver is over the posted speed limit. Further imporvements to the models should increase accuracy.
+The test scores show that ML modeling is a viable way to predict events when the driver is over the posted speed limit. Ensamble techniques brought the recall score over 0.9. Although this is still too low to use the model as the sole source for identifying speeding, it can used with a speed limit API to reduce error to nearly zero while cutting API costs considerably.
 
-Future work will use grid search to more thoroughly tune hyperparameters. It will also consider scoring metrics to reduce false negatives or false positives for different business cases. We need to determine if the predictions should favor a lower the chance of missing a speeding event or a lower chance of sending a false speeding alert. This will be a business decision, but it will affect the scoring method used to optimize the models.
+Future work will include model selection, deployment, and testing. We might also be able to interpolate some missing feature data to increase the data set size and make the service more generally useful. As the OSM database becomes more complete, model error should continue to drop. We might eventually be able to use the model as the sole source to find speeders reducing API costs further.
 <br>
 <br>
 
